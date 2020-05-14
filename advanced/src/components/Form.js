@@ -1,87 +1,97 @@
+
 import React, { useState, useEffect } from "react";
-import * as yup from "yup";
 import axios from "axios";
+import * as yup from "yup";
 
 const formSchema = yup.object().shape({
-  name: yup.string().required("Name is a required field"),
+  name: yup.string().required("Name is a required field."),
   email: yup
     .string()
-    .email("Must be a valid email address")
-    .required("Must include email address"),
-password: yup.string().required("Password is required"),
-  terms: yup.boolean().oneOf([true], "Please agree to terms of use")
+    .email("Must be a valid email address.")
+    .required("Must include email address."),
+    password: yup.string().required("Required"),
+  terms: yup.boolean().oneOf([true], "please agree to terms of use"),
+  
 });
 
 export default function Form() {
+  // state for whether our button should be disabled or not.
+  const [buttonDisabled, setButtonDisabled] = useState(true);
+
   // managing state for our form inputs
   const [formState, setFormState] = useState({
     name: "",
     email: "",
     password: "",
-    terms: false
+    terms: ""
+
   });
 
-
-  const [users, setUsers] = useState([])
-
-
-
-
-  
-  // BONUS!: state for whether our button should be disabled or not.
-  const [buttonDisabled, setButtonDisabled] = useState(true);
-  // Everytime formState changes, check to see if it passes verification.
-  // If it does, then enable the submit button, otherwise disable
-  useEffect(() => {
-    formSchema.isValid(formState).then(valid => {
-      setButtonDisabled(!valid);
-    });
-  }, [formState]);
-
-  const [errorState, setErrorState] = useState({
+  // state for our errors
+  const [errors, setErrors] = useState({
     name: "",
     email: "",
     password: "",
     terms: ""
   });
 
-  const validate = e => {
-    let value =
-      e.target.type === "checkbox" ? e.target.checked : e.target.value;
+  // new state to set our post request too. So we can console.log and see it.
+  const [post, setPost] = useState([]);
+
+  useEffect(() => {
+    formSchema.isValid(formState).then(valid => {
+      setButtonDisabled(!valid);
+    });
+  }, [formState]);
+
+  const formSubmit = e => {
+    e.preventDefault();
+    axios
+      .post("https://reqres.in/api/users", formState)
+      .then(res => {
+        setPost(res.data); // get just the form data from the REST api
+        console.log("success", post);
+        // reset form if successful
+        setFormState({
+          name: "",
+          email: "",
+          terms: "",
+          positions: "",
+          motivation: ""
+        });
+      })
+      .catch(err => console.log(err.response));
+  };
+
+  const validateChange = e => {
+    // Reach will allow us to "reach" into the schema and test only one part.
     yup
       .reach(formSchema, e.target.name)
-      .validate(value)
+      .validate(e.target.value)
       .then(valid => {
-        setErrorState({
-          ...errorState,
+        setErrors({
+          ...errors,
           [e.target.name]: ""
         });
       })
       .catch(err => {
-        setErrorState({
-          ...errorState,
+        setErrors({
+          ...errors,
           [e.target.name]: err.errors[0]
         });
       });
   };
 
-  // onChange function
   const inputChange = e => {
     e.persist();
-    // console.log("input changed!", e.target.value, e.target.checked);
-    validate(e);
-    let value =
-      e.target.type === "checkbox" ? e.target.checked : e.target.value;
-    setFormState({ ...formState, [e.target.name]: value });
-  };
+    const newFormData = {
+      ...formState,
+      [e.target.name]:
+        e.target.type === "checkbox" ? e.target.checked : e.target.value
+    };
 
-  const formSubmit = e => {
-    e.preventDefault();
-    console.log("form submitted!");
-    axios
-      .post("https://reqres.in/api/users", formState)
-      .then(response => console.log(response))
-      .catch(err => console.log(err));
+    validateChange(e);
+    setFormState(newFormData);
   };
 
   return (
@@ -95,6 +105,7 @@ export default function Form() {
           value={formState.name}
           onChange={inputChange}
         />
+        {errors.name.length > 0 ? <p className='error'>{errors.name}</p> : null}
       </label>
       <label htmlFor="email">
         Email
@@ -105,8 +116,8 @@ export default function Form() {
           value={formState.email}
           onChange={inputChange}
         />
-        {errorState.email.length > 0 ? (
-          <p className="error">{errorState.email}</p>
+        {errors.email.length > 0 ? (
+          <p className="error">{errors.email}</p>
         ) : null}
       </label>
       <label htmlFor="password">
@@ -117,25 +128,27 @@ export default function Form() {
           value={formState.password}
           onChange={inputChange}
         />
-        {errorState.password.length > 0 ? (
-          <p className="error">{errorState.password}</p>
+        {errors.password.length > 0 ? (
+          <p className="error">{errors.password}</p>
         ) : null}
       </label>
       
-      <label htmlFor="terms">
+      <label htmlFor='terms' className='terms'>
         <input
-          type="checkbox"
-          id="terms"
-          name="terms"
+          type='checkbox'
+          name='terms'
           checked={formState.terms}
           onChange={inputChange}
         />
         Terms & Conditions
-        {errorState.terms.length > 0 ? (
-          <p className="error">{errorState.terms}</p>
-        ) : null}
       </label>
+      {/* displaying our post request data */}
+      <pre>{JSON.stringify(post, null, 2)}</pre>
       <button disabled={buttonDisabled}>Submit</button>
     </form>
   );
 }
+
+
+
+
